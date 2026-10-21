@@ -1,0 +1,38 @@
+name: Windows build and tests
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: build-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  build:
+    runs-on: windows-2022
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Ensure VSTO build tools
+        shell: powershell
+        run: .\scripts\install-build-tools.ps1
+      - name: Run regression tests
+        shell: powershell
+        run: .\scripts\test.ps1
+      - name: Build signed development package
+        shell: powershell
+        run: |
+          $thumbprint = .\scripts\new-dev-certificate.ps1
+          try {
+            .\scripts\build.ps1 -CertificateThumbprint $thumbprint -Publish
+          } finally {
+            Remove-Item -LiteralPath "Cert:\CurrentUser\My\$thumbprint" -ErrorAction SilentlyContinue
+          }
+      - name: Upload development package (not production signed)
+        uses: actions/upload-artifact@v4
+        with:
+          name: RecipientConfirm-development
+          path: artifacts/publish/
+          if-no-files-found: error

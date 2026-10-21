@@ -1,0 +1,12 @@
+[Bb]in/
+[Oo]bj/
+.vs/
+artifacts/
+*.user
+*.suo
+*.pfx
+*.p12
+*.snk
+*.cer
+*.binlog
+publish/
