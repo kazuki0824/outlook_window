@@ -9,6 +9,6 @@ $certificate = New-SelfSignedCertificate -Type CodeSigningCert `
     -KeyAlgorithm RSA -KeyLength 2048 -HashAlgorithm SHA256 -KeyExportPolicy NonExportable `
     -Provider 'Microsoft Enhanced RSA and AES Cryptographic Provider' `
     -NotAfter (Get-Date).AddYears(1)
-Write-Host 'Development signing certificate created in CurrentUser\My. Trust is not installed.'
+Write-Information -InformationAction Continue 'Development signing certificate created in CurrentUser\My. Trust is not installed.'
 # Only the thumbprint is written to the success stream, for assignment in a calling script.
 $certificate.Thumbprint

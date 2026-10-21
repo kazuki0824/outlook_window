@@ -20,7 +20,7 @@ if (-not $certificate.HasPrivateKey -or $certificate.NotAfter -le (Get-Date)) {
     throw 'A non-expired signing certificate with a private key is required in CurrentUser\My.'
 }
 $arguments = @(
-    (Join-Path $root 'RecipientConfirm.sln'), '/nologo', '/m', '/t:Build',
+    (Join-Path $root 'RecipientConfirm.sln'), '/nologo', '/m', '/restore', '/t:Build',
     "/p:Configuration=$Configuration", "/p:VisualStudioVersion=$($build.Version)",
     "/p:VSToolsPath=$($build.VSToolsPath)", "/p:OfficePiaPath=$pia",
     '/p:SignManifests=true', "/p:ManifestCertificateThumbprint=$thumbprint"
@@ -44,5 +44,5 @@ if ($Publish) {
     if (-not (Test-Path -LiteralPath (Join-Path $publishDirectory 'RecipientConfirm.vsto'))) {
         throw 'Publish did not produce RecipientConfirm.vsto.'
     }
-    Write-Host "Published locally: $publishDirectory"
+    Write-Information -InformationAction Continue "Published locally: $publishDirectory"
 }

@@ -7,11 +7,11 @@ try {
     $null = Get-OfficePiaPath
     $net48 = Join-Path ${env:ProgramFiles(x86)} 'Reference Assemblies\Microsoft\Framework\.NETFramework\v4.8\mscorlib.dll'
     if (Test-Path -LiteralPath $net48) {
-        Write-Host 'VSTO tools, Office PIAs and .NET Framework 4.8 references are already installed.'
+        Write-Information -InformationAction Continue 'VSTO tools, Office PIAs and .NET Framework 4.8 references are already installed.'
         return
     }
 } catch {
-    Write-Host 'Installing the required Windows build components.'
+    Write-Information -InformationAction Continue 'Installing the required Windows build components.'
 }
 $bootstrapper = Join-Path ([IO.Path]::GetTempPath()) ('recipient-confirm-buildtools-' + [Guid]::NewGuid() + '.exe')
 try {

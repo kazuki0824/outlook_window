@@ -22,7 +22,10 @@ namespace RecipientConfirm
 
             var layout = new TableLayoutPanel
             {
-                Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 5, Padding = new Padding(16)
+                Dock = DockStyle.Fill,
+                ColumnCount = 1,
+                RowCount = 5,
+                Padding = new Padding(16)
             };
             layout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
             layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
@@ -34,7 +37,9 @@ namespace RecipientConfirm
 
             layout.Controls.Add(new Label
             {
-                AutoSize = true, Dock = DockStyle.Fill, Padding = new Padding(0, 0, 0, 12),
+                AutoSize = true,
+                Dock = DockStyle.Fill,
+                Padding = new Padding(0, 0, 0, 12),
                 Text = $"次の宛先に送信します。全 {recipients.Count} 件 " +
                     $"（To: {recipients.Count(r => r.Kind == "To")} / " +
                     $"Cc: {recipients.Count(r => r.Kind == "Cc")} / " +
@@ -43,11 +48,17 @@ namespace RecipientConfirm
 
             var grid = new DataGridView
             {
-                Dock = DockStyle.Fill, ReadOnly = true, AllowUserToAddRows = false,
-                AllowUserToDeleteRows = false, AllowUserToOrderColumns = false,
-                AutoGenerateColumns = false, RowHeadersVisible = false,
-                SelectionMode = DataGridViewSelectionMode.FullRowSelect, MultiSelect = false,
-                BackgroundColor = SystemColors.Window, AutoSizeRowsMode = DataGridViewAutoSizeRowsMode.None,
+                Dock = DockStyle.Fill,
+                ReadOnly = true,
+                AllowUserToAddRows = false,
+                AllowUserToDeleteRows = false,
+                AllowUserToOrderColumns = false,
+                AutoGenerateColumns = false,
+                RowHeadersVisible = false,
+                SelectionMode = DataGridViewSelectionMode.FullRowSelect,
+                MultiSelect = false,
+                BackgroundColor = SystemColors.Window,
+                AutoSizeRowsMode = DataGridViewAutoSizeRowsMode.None,
                 AccessibleName = "全送信先一覧"
             };
             AddColumn(grid, "種別", 65);
@@ -61,9 +72,13 @@ namespace RecipientConfirm
 
             var detail = new TextBox
             {
-                Dock = DockStyle.Fill, Multiline = true, ReadOnly = true,
-                ScrollBars = ScrollBars.Both, WordWrap = false,
-                AccessibleName = "選択した送信先の全文", Margin = new Padding(0, 8, 0, 8)
+                Dock = DockStyle.Fill,
+                Multiline = true,
+                ReadOnly = true,
+                ScrollBars = ScrollBars.Both,
+                WordWrap = false,
+                AccessibleName = "選択した送信先の全文",
+                Margin = new Padding(0, 8, 0, 8)
             };
             Action showDetails = () =>
             {
@@ -77,7 +92,9 @@ namespace RecipientConfirm
 
             layout.Controls.Add(new Label
             {
-                AutoSize = true, Dock = DockStyle.Fill, Padding = new Padding(0, 0, 0, 12),
+                AutoSize = true,
+                Dock = DockStyle.Fill,
+                Padding = new Padding(0, 0, 0, 12),
                 Text = recipients.Any(r => r.IsGroup)
                     ? "グループは宛先アドレスを表示しています。内部メンバーは展開していません。"
                     : "キャンセルすると、メールを送信せず編集画面に戻ります。"
@@ -85,7 +102,9 @@ namespace RecipientConfirm
 
             var buttons = new FlowLayoutPanel
             {
-                AutoSize = true, Dock = DockStyle.Fill, FlowDirection = FlowDirection.RightToLeft
+                AutoSize = true,
+                Dock = DockStyle.Fill,
+                FlowDirection = FlowDirection.RightToLeft
             };
             var cancel = new Button { Text = "キャンセル", AutoSize = true, DialogResult = DialogResult.Cancel };
             var send = new Button { Text = "送信する", AutoSize = true, DialogResult = DialogResult.OK };
@@ -102,7 +121,9 @@ namespace RecipientConfirm
         {
             grid.Columns.Add(new DataGridViewTextBoxColumn
             {
-                HeaderText = name, Width = width, SortMode = DataGridViewColumnSortMode.NotSortable
+                HeaderText = name,
+                Width = width,
+                SortMode = DataGridViewColumnSortMode.NotSortable
             });
         }
     }

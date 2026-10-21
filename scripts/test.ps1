@@ -6,7 +6,7 @@ $root = Split-Path $PSScriptRoot -Parent
 $build = Get-BuildEnvironment
 Invoke-CheckedMSBuild -Executable $build.MSBuild -BuildArguments @(
     (Join-Path $root 'tests\RecipientConfirm.Tests\RecipientConfirm.Tests.csproj'),
-    '/nologo', '/t:Build', "/p:Configuration=$Configuration"
+    '/nologo', '/restore', '/t:Build', "/p:Configuration=$Configuration"
 )
 & (Join-Path $root "tests\RecipientConfirm.Tests\bin\$Configuration\RecipientConfirm.Tests.exe")
 if ($LASTEXITCODE -ne 0) { throw "Tests failed with exit code $LASTEXITCODE." }
