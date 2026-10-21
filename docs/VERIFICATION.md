@@ -4,6 +4,7 @@
 
 ## 実施済み
 
+- [Windows CI初回実行](https://github.com/kazuki0824/outlook_window/actions/runs/39593714310)で、VSTO本体とテストプロジェクトのビルド・静的解析が警告0、エラー0。リントと.NET Framework 4.8での18件のテストも成功。Publish自体は成功したが、出力先にPublishUrlを渡していたため想定先への生成物チェックで失敗し、PublishDirへ修正。
 - C#の全ソース7ファイルを`dotnet format whitespace . --folder --verify-no-changes`で検査し成功。書式違反を検出して非ゼロ終了することも確認し、指摘を修正済み。
 - 全PowerShellスクリプトをPSScriptAnalyzer 1.23.0で検査し、エラー・警告なし。
 - Microsoft.CodeAnalysis.NetAnalyzers 8.0.0を有効にして送信判定の本番ソースと回帰テストをコンパイルし、18/18成功。意図的な不正な再throwを入れた一時ソースではCA2200エラーでコンパイルに失敗することも確認。
@@ -17,12 +18,9 @@
 
 | 項目 | 理由・次の確認 |
 |---|---|
-| Windows MSBuildによるVSTOプロジェクト全体のビルド | 実行環境がLinuxで、OfficeToolsビルドタスクと.NET Frameworkがない。Windowsでscripts/build.ps1を実行 |
-| .NET Framework 4.8でのテスト実行 | Windowsでscripts/test.ps1を実行 |
-| .vsto生成・署名・導入・削除 | Windowsと署名証明書、VSTO Runtimeが必要 |
+| インストール・削除 | 実Windows端末とVSTO Runtimeが必要。CIでの生成・署名と区別して扱う |
 | Outlook COM接続とSMTP解決 | 従来版Outlookと実メールプロファイルが必要 |
 | WinFormsの表示、Esc/×、DPI、モーダル動作 | Windowsデスクトップセッションが必要 |
-| GitHub Actions | 指定リポジトリをクローンし、空であることを確認。設定はローカルに実装済みだが、Push直前までの指示が継続しているため、リモート上で実行していない |
 
 Linuxで通過したテストは送信判定の純粋C#部分に限ります。COM APIの参照解決、VSTOホストの初期化、ClickOnceの生成物、実際のメール送信を検証したものではありません。
 

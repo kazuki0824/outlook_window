@@ -4,7 +4,7 @@ Windowsの**従来版Outlook**で、通常の送信操作の直後・実際の�
 
 ## 現在の検証状態
 
-**ソース実装済み。WindowsでのVSTOビルド、署名済みマニフェストの生成・インストール、Outlook実機動作は未検証です。** このリポジトリを作成した環境はLinuxで、Windows版MSBuildとOutlookがありません。
+**Windows CIでVSTOビルド、C#静的解析、リントと回帰テスト18件の成功を確認しています。** 配布物のPublishとアップロードを含む最新CIの結果はActionsを参照してください。インストールとOutlook実機動作は未検証です。
 
 送信判定の本番ソースをC# 7.3としてコンパイルし、Linux / .NET 8上で回帰テスト18件が成功しています。これはアドイン全体のビルド成功や.NET Framework 4.8での動作を意味しません。詳細は[検証記録](docs/VERIFICATION.md)と[実機テスト](docs/MANUAL_TESTS.md)を参照してください。
 
@@ -96,7 +96,7 @@ Install-Module PSScriptAnalyzer -RequiredVersion 1.23.0 -Scope CurrentUser
 
 書式の修正には`dotnet format whitespace . --folder`を使います。VSTOプロジェクトを.NET SDKのMSBuildで読み込まないよう、書式チェックはフォルダー単位で実施します。意味解析を伴うC#静的解析はWindows版MSBuildが担当します。
 
-mainへのPushとPRのイベントに対応し、同一refの古い実行を取り消します。作業ブランチへのPushとPR更新で重複実行しない設定です。実際のGitHub Actions実行はまだ行っていません。Outlook実機テストはCIの対象外です。
+mainへのPushとPRのイベントに対応し、同一refの古い実行を取り消します。作業ブランチへのPushとPR更新で重複実行しない設定です。Outlook実機テストはCIの対象外です。
 
 ## ソース構成
 

@@ -38,7 +38,7 @@ if ($Publish) {
         "/p:Configuration=$Configuration", "/p:VisualStudioVersion=$($build.Version)",
         "/p:VSToolsPath=$($build.VSToolsPath)", "/p:OfficePiaPath=$pia",
         '/p:SignManifests=true', "/p:ManifestCertificateThumbprint=$thumbprint",
-        "/p:PublishUrl=$publishDirectory"
+        "/p:PublishDir=$publishDirectory"
     )
     Invoke-CheckedMSBuild -Executable $build.MSBuild -BuildArguments $publishArguments
     if (-not (Test-Path -LiteralPath (Join-Path $publishDirectory 'RecipientConfirm.vsto'))) {
