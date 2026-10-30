@@ -41,7 +41,7 @@ dotnet run --project tests/RecipientConfirm.Tests/RecipientConfirm.Tests.csproj 
 
 `dotnet` CLIは.NET Framework 4.8向けのコンパイルに使用できます。ただし、**既存のVSTOタスクを変更せず、`dotnet publish`だけで配布物生成まで完了することはできません**。[追加検証](https://github.com/kazuki0824/outlook_window/actions/runs/41045075845)では、ターゲット・参照先に加えてGACの依存DLLをVSTOタスクの隣に配置すると、以前失敗した署名設定チェックを通過しました。しかし次の`FindRibbons`が`Assembly.ReflectionOnlyLoadFrom`を呼び、`PlatformNotSupportedException`で停止しました。このAPIは[.NET Core / .NET 5以降では未対応](https://learn.microsoft.com/en-us/dotnet/api/system.reflection.assembly.reflectiononlyloadfrom?view=net-10.0)です。対象フレームワークではなく、ビルド中に実行されるVSTOタスクの互換性が制約です。CLR4タスクホストへの引き渡しもMSB4216で失敗しました。条件と結果は[検証記録](docs/VERIFICATION.md)に記載しています。
 
-`dotnet`だけに統一するには、VSTOタスクの移植・置換または.NET Frameworkで動く独自の別プロセスを用意するなど、標準コマンドへの置き換えを超える対応が必要です。本構成では既存VSTO処理を維持し、その実行に.NET Framework版MSBuildを使用します。
+`dotnet`版MSBuild上で完結するには、VSTOタスクの移植・置換が必要です。.NET Frameworkの別プロセスに代行させる方法では、.NET SDKだけでは完結しません。本構成では既存VSTO処理を維持し、その実行に.NET Framework版MSBuildを使用します。
 
 VSTOの署名・配布物生成は、標準のMSBuild Publishターゲットを直接実行します。Publishにはビルドも含まれるため、先にソリューション全体をビルドする必要はありません。
 
