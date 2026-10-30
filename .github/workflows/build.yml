@@ -108,6 +108,17 @@ jobs:
             $ErrorActionPreference = 'Continue'
             dotnet publish $project --configuration Release "-p:VSToolsPath=$vstools" "-p:OfficePiaPath=$pia" "-p:CustomAfterMicrosoftCommonTargets=$fixPath" "-p:ManifestCertificateThumbprint=$thumbprint" "-p:PublishDir=$publishDir" 2>&1 | Tee-Object artifacts/probe/publish.log
             "dotnet Publish exit code: $LASTEXITCODE" | Tee-Object -Append artifacts/probe/publish.log
+            # Explicitly test the documented CLR4 task-host route as well.
+            $hostTask = $fixes.CreateElement('UsingTask', $xmlns)
+            $hostTask.SetAttribute('TaskName', 'FindRibbons')
+            $hostTask.SetAttribute('AssemblyFile', "$vstools\OfficeTools\Microsoft.VisualStudio.Tools.Office.BuildTasks.dll")
+            $hostTask.SetAttribute('TaskFactory', 'TaskHostFactory')
+            $hostTask.SetAttribute('Runtime', 'CLR4')
+            $hostTask.SetAttribute('Override', 'true')
+            $null = $fixes.DocumentElement.AppendChild($hostTask)
+            $fixes.Save($fixPath)
+            dotnet publish $project --configuration Release "-p:VSToolsPath=$vstools" "-p:OfficePiaPath=$pia" "-p:CustomAfterMicrosoftCommonTargets=$fixPath" "-p:ManifestCertificateThumbprint=$thumbprint" "-p:PublishDir=$publishDir" 2>&1 | Tee-Object artifacts/probe/clr4-host.log
+            "CLR4 task-host exit code: $LASTEXITCODE" | Tee-Object -Append artifacts/probe/clr4-host.log
           } finally {
             Remove-Item -LiteralPath "Cert:\CurrentUser\My\$thumbprint" -ErrorAction SilentlyContinue
           }
