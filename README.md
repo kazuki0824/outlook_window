@@ -4,9 +4,9 @@ Windowsの**従来版Outlook**で、通常の送信操作の直後・実際の�
 
 ## 現在の検証状態
 
-**Windows CIでVSTOビルド、C#静的解析、リントと回帰テスト18件の成功を確認しています。** 配布物のPublishとアップロードを含む最新CIの結果はActionsを参照してください。インストールとOutlook実機動作は未検証です。
+**Windows CIでVSTOビルド、C#静的解析、リントと送信判定の単体テスト18件の成功を確認しています。** 配布物のPublishとアップロードを含む最新CIの結果はActionsを参照してください。インストールとOutlook実機動作は未検証です。
 
-送信判定の本番ソースをC# 7.3としてコンパイルし、Linux / .NET 8上で回帰テスト18件が成功しています。これはアドイン全体のビルド成功や.NET Framework 4.8での動作を意味しません。詳細は[検証記録](docs/VERIFICATION.md)と[実機テスト](docs/MANUAL_TESTS.md)を参照してください。
+単体テストは送信判定の純粋C#部分を対象とし、OutlookのCOM接続、確認ウィンドウの操作、実際の送信停止までは検証していません。詳細は[検証記録](docs/VERIFICATION.md)と[実機テスト](docs/MANUAL_TESTS.md)を参照してください。
 
 ## 動作
 
@@ -26,40 +26,40 @@ Windowsの**従来版Outlook**で、通常の送信操作の直後・実際の�
 
 ## Windowsでの準備
 
-- Windows、Windows PowerShell 5.1以上。
-- Visual Studio Build Tools 2022以降のMSBuild、VSTO build tools、ClickOnce build tools、.NET Framework 4.8 SDK/Targeting Pack、Office 15 PIAs。
+- Windows、PowerShell 5.1以上、.NET 10 SDK。
+- VSTO本体のビルドにはVisual Studio Build Tools 2022のVSTO build tools、ClickOnce build tools、.NET Framework 4.8 SDK/Targeting Pack、Office 15 PIAsが必要です。Microsoft公式インストーラーで導入してください。
+- `MSBuild.exe`がPATHにあるPowerShellを使用します。複数のVisual Studioの選別やツールの自動インストールは行いません。
 - 実機確認時は従来版Outlook、.NET Framework 4.8、Visual Studio Tools for Office Runtimeが必要です。新しいOutlookには対応しません。
-
-Build Toolsは、Microsoft公式ブートストラッパーをダウンロードする次のスクリプトで導入できます。管理者権限のPowerShellで実行してください。既に必要なツールがある場合は導入を省略します。
-
-```powershell
-.\scripts\install-build-tools.ps1
-```
-
-スクリプトを実行する際は、組織のPowerShell実行ポリシーに従ってください。スクリプトはポリシーを変更しません。
 
 ## CLIビルドとテスト
 
-まず、通常ユーザーのPowerShellで開発用署名証明書を作ります。秘密鍵はそのユーザーの証明書ストア内に生成され、PFXファイルには書き出されません。Trusted Root / Trusted Publishersへの登録は行いません。
+単体テストはSDK形式のプロジェクトなので、`dotnet` CLIでビルドと実行ができます。VSTO本体とは独立しています。
+
+```powershell
+dotnet run --project tests/RecipientConfirm.Tests/RecipientConfirm.Tests.csproj --configuration Release
+```
+
+VSTO本体は`dotnet` CLIへそのまま置き換えられません。[.NET SDK 10.0.403での検証](https://github.com/kazuki0824/outlook_window/actions/runs/40982783820)では、ターゲットと参照DLLを補うとDLLのコンパイルまでは成功しましたが、VSTOの`VerifyClickOnceSigningSettings`タスクで依存DLLの読み込みに失敗しました（MSB4018）。SDKだけでVSTO配布物を生成できた結果ではありません。追加の依存解決やタスクの移植が不可能だと証明したものでもありません。
+
+VSTOの署名・配布物生成は、標準のMSBuild Publishターゲットを直接実行します。Publishにはビルドも含まれるため、先にソリューション全体をビルドする必要はありません。
 
 ```powershell
 $thumbprint = .\scripts\new-dev-certificate.ps1
-.\scripts\test.ps1
-.\scripts\build.ps1 -CertificateThumbprint $thumbprint -Publish
+$publishDir = Join-Path $PWD 'artifacts\publish\'
+msbuild src/RecipientConfirm/RecipientConfirm.csproj /restore /t:Publish /p:Configuration=Release "/p:ManifestCertificateThumbprint=$thumbprint" "/p:PublishDir=$publishDir"
 ```
 
-既存のコード署名証明書を使う場合は、CurrentUser\Myにある秘密鍵付き証明書の拇印を渡してください。`RECIPIENT_CONFIRM_CERT_THUMBPRINT`環境変数でも指定できます。証明書の作成は毎回行う必要はありません。
-
-`build.ps1`は`vswhere`でVSTO対応の`MSBuild.exe`を検出し、通常形式の`.csproj`をビルドします。`dotnet build`単独には対応していません。必要なら`-OfficePiaPath 'C:\...\Office15'`でPIAの場所を指定できます。
+既存のコード署名証明書を使う場合は、CurrentUser\Myにある秘密鍵付き証明書の拇印を`$thumbprint`に設定します。開発用証明書の秘密鍵もCurrentUser\Myに生成し、PFXへの書き出しや信頼ストアへの自動登録は行いません。証明書は毎回作成する必要はありません。
 
 出力:
 
 | 場所 | 内容 |
 |---|---|
+| `tests/RecipientConfirm.Tests/bin/Release/net48/` | 単体テストの実行ファイル |
 | `src/RecipientConfirm/bin/Release/` | DLL、アプリケーションマニフェスト、`.vsto`など |
-| `artifacts/publish/` | `-Publish`指定時のローカルClickOnce配布ディレクトリ |
+| `artifacts/publish/` | ClickOnce配布ディレクトリ |
 
-`-Publish`はローカルへの配布用ファイル生成だけです。ネットワークへの公開やGit Pushは行いません。ビルド中のOfficeアドイン登録・解除ターゲットは無効にし、導入は次の手順に分離しています。
+Publishはローカルへの配布用ファイル生成です。ビルド中のOfficeアドイン登録・解除ターゲットは無効にし、導入は次の手順に分離しています。
 
 ## 導入・削除
 
@@ -77,24 +77,24 @@ VSTOInstallerの信頼確認は表示されます。自己署名証明書の受�
 
 ## CI
 
-`.github/workflows/build.yml`はWindowsでリント、回帰テスト、VSTOビルド、ローカルPublishを実行する単一ジョブです。CI内だけで開発用証明書を作成して秘密鍵を削除し、開発用配布ファイルをartifactに保存します。本番署名済みリリースではありません。
+`.github/workflows/build.yml`はWindowsでリント、単体テスト、VSTOビルド、ローカルPublishを実行する単一ジョブです。CI内だけで開発用証明書を作成して秘密鍵を削除し、開発用配布ファイルをartifactに保存します。本番署名済みリリースではありません。
 
 | チェック | ツール・失敗条件 |
 |---|---|
-| C#書式 | .NET 8 SDKの`dotnet format whitespace . --folder --verify-no-changes`。`.editorconfig`と異なる書式があれば失敗 |
+| C#書式 | .NET 10 SDKの`dotnet format whitespace . --folder --verify-no-changes`。`.editorconfig`と異なる書式があれば失敗 |
 | C#静的解析 | `Microsoft.CodeAnalysis.NetAnalyzers` 8.0.0を両プロジェクトのビルド時に実行。警告をエラーとして扱う |
 | PowerShell | `PSScriptAnalyzer` 1.23.0。全scripts配下のエラー・警告があれば失敗 |
-| 回帰テスト | 送信判定テスト18件。失敗時は非ゼロ終了 |
+| 単体テスト | SDK形式のテストプロジェクトを`dotnet run`でビルド・実行。18件のいずれかが失敗すれば非ゼロ終了 |
 | ビルド・配布物 | MSBuildと開発用証明書でビルドし、DLL・マニフェスト・.vstoの存在も検査 |
 
-ローカルでのリントには.NET 8 SDKとPSScriptAnalyzerが必要です。
+ローカルでのリントには.NET 10 SDKとPSScriptAnalyzerが必要です。
 
 ```powershell
 Install-Module PSScriptAnalyzer -RequiredVersion 1.23.0 -Scope CurrentUser
 .\scripts\lint.ps1
 ```
 
-書式の修正には`dotnet format whitespace . --folder`を使います。VSTOプロジェクトを.NET SDKのMSBuildで読み込まないよう、書式チェックはフォルダー単位で実施します。意味解析を伴うC#静的解析はWindows版MSBuildが担当します。
+書式の修正には`dotnet format whitespace . --folder`を使います。VSTOプロジェクトを.NET SDKのMSBuildで読み込まないよう、書式チェックはフォルダー単位で実施します。C#静的解析は、テストをビルドする`dotnet`とVSTOをビルドするMSBuildの両方で実行します。CIでのMSBuildのPATH設定にはMicrosoft公式の`setup-msbuild`を使用し、ビルドツールの独自探索・自動導入は行いません。
 
 mainへのPushとPRのイベントに対応し、同一refの古い実行を取り消します。作業ブランチへのPushとPR更新で重複実行しない設定です。Outlook実機テストはCIの対象外です。
 
@@ -107,7 +107,7 @@ mainへのPushとPRのイベントに対応し、同一refの古い実行を取�
 | `src/RecipientConfirm/RecipientConfirmationForm.cs` | 確認ウィンドウ |
 | `src/RecipientConfirm/RecipientInfo.cs` | 宛先情報と比較 |
 | `src/RecipientConfirm/SendGate.cs` | 承認前後の再確認 |
-| `tests/RecipientConfirm.Tests/` | 外部テストフレームワーク不要の回帰テスト |
+| `tests/RecipientConfirm.Tests/` | 外部テストフレームワーク不要の単体テスト |
 
 ## Git
 

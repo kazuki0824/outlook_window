@@ -1,5 +1,7 @@
-name: dotnet CLI compatibility probe
+name: Windows build, lint and tests
 on:
+  push:
+    branches: [main]
   pull_request:
   workflow_dispatch:
 permissions:
@@ -8,63 +10,46 @@ concurrency:
   group: build-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 jobs:
-  dotnet-probe:
+  build:
     runs-on: windows-2022
-    timeout-minutes: 10
+    timeout-minutes: 15
+    defaults:
+      run:
+        shell: powershell
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: 10.0.x
-      - name: Probe dotnet CLI with and without installed VSTO targets
-        shell: powershell
+      - uses: microsoft/setup-msbuild@v3
+        with:
+          vs-version: '[17.0,18.0)'
+      - name: Install PowerShell linter
         run: |
-          $ErrorActionPreference = 'Continue'
-          New-Item -ItemType Directory -Force artifacts/probe | Out-Null
-          dotnet --info
+          Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Force -Scope CurrentUser | Out-Null
+          Install-Module PSScriptAnalyzer -RequiredVersion 1.23.0 -Repository PSGallery -Scope CurrentUser -Force
+      - name: Lint C# formatting and PowerShell
+        run: .\scripts\lint.ps1
+      - name: Run unit tests with dotnet CLI
+        run: dotnet run --project tests/RecipientConfirm.Tests/RecipientConfirm.Tests.csproj --configuration Release
+      - name: Build and publish VSTO package with static analysis
+        run: |
           $thumbprint = .\scripts\new-dev-certificate.ps1
           try {
-            $project = 'src/RecipientConfirm/RecipientConfirm.csproj'
-            dotnet build $project --configuration Release "-p:ManifestCertificateThumbprint=$thumbprint" 2>&1 | Tee-Object artifacts/probe/sdk-only.log
-            "SDK-only exit code: $LASTEXITCODE" | Tee-Object -Append artifacts/probe/sdk-only.log
-            . .\scripts\BuildEnvironment.ps1
-            $build = Get-BuildEnvironment
-            $pia = Get-OfficePiaPath
-            $ErrorActionPreference = 'Continue'
-            dotnet build $project --configuration Release "-p:ManifestCertificateThumbprint=$thumbprint" "-p:VSToolsPath=$($build.VSToolsPath)" "-p:OfficePiaPath=$pia" 2>&1 | Tee-Object artifacts/probe/with-vsto-targets.log
-            "With VSTO targets exit code: $LASTEXITCODE" | Tee-Object -Append artifacts/probe/with-vsto-targets.log
-            $vs = (Resolve-Path (Join-Path $build.VSToolsPath '..\..\..\..')).Path
-            [xml]$source = Get-Content $project
-            $xmlns = 'http://schemas.microsoft.com/developer/msbuild/2003'
-            [xml]$fixes = '<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003"><ItemGroup /></Project>'
-            $items = $fixes.DocumentElement.FirstChild
-            foreach ($reference in $source.SelectNodes("//*[local-name()='Reference']")) {
-              $identity = $reference.Include
-              $name = ($identity -split ',')[0]
-              if ($name -like 'Microsoft.Office.Tools*' -or $name -like 'Microsoft.VisualStudio.Tools*' -or $name -eq 'stdole') {
-                $directory = if ($name -eq 'stdole') { "$vs\Common7\IDE\PublicAssemblies" } else { "$vs\Common7\IDE\ReferenceAssemblies\v4.0" }
-                $dll = Join-Path $directory "$name.dll"
-                if (-not (Test-Path $dll)) { throw "Probe reference does not exist: $dll" }
-                $entry = $fixes.CreateElement('Reference', $xmlns)
-                $entry.SetAttribute('Update', $identity)
-                $hint = $fixes.CreateElement('HintPath', $xmlns)
-                $hint.InnerText = $dll
-                $null = $entry.AppendChild($hint)
-                $null = $items.AppendChild($entry)
-              }
+            $publishDir = Join-Path $env:GITHUB_WORKSPACE 'artifacts\publish\'
+            msbuild src/RecipientConfirm/RecipientConfirm.csproj /restore /t:Publish /p:Configuration=Release "/p:ManifestCertificateThumbprint=$thumbprint" "/p:PublishDir=$publishDir"
+            if ($LASTEXITCODE -ne 0) { throw 'VSTO build/publish failed.' }
+            if (-not (Test-Path artifacts/publish/RecipientConfirm.vsto) -or
+                -not (Get-ChildItem artifacts/publish -Recurse -Filter RecipientConfirm.dll.manifest) -or
+                -not (Get-ChildItem artifacts/publish -Recurse -Filter RecipientConfirm.dll.deploy)) {
+              throw 'VSTO deployment files are incomplete.'
             }
-            $fixPath = Join-Path $PWD 'artifacts\probe\references.targets'
-            $fixes.Save($fixPath)
-            dotnet build $project --configuration Release "-p:ManifestCertificateThumbprint=$thumbprint" "-p:VSToolsPath=$($build.VSToolsPath)" "-p:OfficePiaPath=$pia" "-p:CustomAfterMicrosoftCommonTargets=$fixPath" 2>&1 | Tee-Object artifacts/probe/with-hintpaths.log
-            "With explicit HintPaths exit code: $LASTEXITCODE" | Tee-Object -Append artifacts/probe/with-hintpaths.log
           } finally {
             Remove-Item -LiteralPath "Cert:\CurrentUser\My\$thumbprint" -ErrorAction SilentlyContinue
           }
-          # This job records compatibility results; it is not a build acceptance check.
-          exit 0
-      - uses: actions/upload-artifact@v4
-        if: always()
+      - name: Upload development package (not production signed)
+        uses: actions/upload-artifact@v4
         with:
-          name: dotnet-compatibility-evidence
-          path: artifacts/probe/
+          name: RecipientConfirm-development
+          path: artifacts/publish/
           if-no-files-found: error
