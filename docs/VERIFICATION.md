@@ -16,6 +16,23 @@
 
 結論は、現構成を`dotnet`へそのまま置き換えてVSTO配布物生成まで完了することはできなかった、という範囲です。追加の依存解決やタスクの移植まで不可能だとする検証ではありません。簡素化後の通常CIは[PRのChecks](https://github.com/kazuki0824/outlook_window/pull/1/checks)を参照してください。互換性調査ジョブは失敗ログを保存するため成功終了する仕組みであり、製品ビルドの合格を意味しません。調査用ジョブと一時targetsは最終構成には残していません。
 
+## 2026-10-30: VSTOタスクの依存解決後の追加検証
+
+[PR #2](https://github.com/kazuki0824/outlook_window/pull/2)で、Windows 2022 / .NET SDK 10系の`dotnet publish`を追加検証しました。
+
+[依存DLL補完後の実行ログ](https://github.com/kazuki0824/outlook_window/actions/runs/41045075845/job/124027061276):
+
+1. Visual Studioにインストール済みのOfficeToolsターゲットとPIA、VSTO参照DLLのHintPathを指定。
+2. 使い捨ての診断用runnerで、GACにある`Microsoft.VisualStudio.Tools.*`と`Microsoft.Office.Tools.*`のDLLをVSTO BuildTasks DLLの隣へコピー。製品配布物には追加していません。
+3. DLLコンパイルと`VerifyClickOnceSigningSettings`を通過し、`FindRibbons`でMSB4018。
+4. 内部例外は`System.PlatformNotSupportedException: ReflectionOnly loading is not supported on this platform.`。呼び出し元は`FindRibbons.FindRibbonTypes`、未対応APIは`System.Reflection.Assembly.ReflectionOnlyLoadFrom`。
+
+このAPIは[Microsoftの仕様](https://learn.microsoft.com/en-us/dotnet/api/system.reflection.assembly.reflectiononlyloadfrom?view=net-10.0)でも.NET Core / .NET 5以降では常に`PlatformNotSupportedException`となります。依存DLLの探索設定だけで解消する問題ではありません。`net48`をコンパイルできないという意味ではなく、既存VSTOタスクの実行ランタイムの非互換です。
+
+[同じ条件でCLR4タスクホストも指定した実行](https://github.com/kazuki0824/outlook_window/actions/runs/41045451763/job/124028383660)では、同じ`FindRibbons`のAPI非互換を再現しました。続けて`UsingTask`を`Runtime="CLR4"`、`TaskFactory="TaskHostFactory"`に上書きすると、MSB4216で失敗しました。SDKディレクトリの`MSBuild.exe`をホストとして要求しますが、その実行ファイルは.NET SDKにはありません。Microsoftの[UsingTask仕様](https://learn.microsoft.com/en-us/visualstudio/msbuild/usingtask-element-msbuild)でもdotnet版MSBuildでCLR2/CLR4タスクを実行できないと明記されています。外部の.NET Framework版ホストを別途使う場合は「dotnetだけ」という構成にはなりません。
+
+既存VSTOタスクを変更せずにPublishする経路は.NET Framework版MSBuildを維持します。タスクの移植・置換や独自プロセスによる代行まで不可能とする結論ではありません。診断用のDLLコピー、参照上書きtargets、ジョブは最終構成には残しません。
+
 ## 2026-10-21: 実施済み
 
 - [Windows CI初回実行](https://github.com/kazuki0824/outlook_window/actions/runs/39593714310)で、VSTO本体とテストプロジェクトのビルド・静的解析が警告0、エラー0。リントと.NET Framework 4.8での18件のテストも成功。Publish自体は成功したが、出力先にPublishUrlを渡していたため想定先への生成物チェックで失敗し、PublishDirへ修正。
