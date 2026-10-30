@@ -12,34 +12,38 @@ concurrency:
 jobs:
   build:
     runs-on: windows-2022
-    timeout-minutes: 20
+    timeout-minutes: 15
+    defaults:
+      run:
+        shell: powershell
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: 8.0.x
+          dotnet-version: 10.0.x
+      - uses: microsoft/setup-msbuild@v3
+        with:
+          vs-version: '[17.0,18.0)'
       - name: Install PowerShell linter
-        shell: powershell
         run: |
-          $ErrorActionPreference = 'Stop'
-          [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
           Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Force -Scope CurrentUser | Out-Null
           Install-Module PSScriptAnalyzer -RequiredVersion 1.23.0 -Repository PSGallery -Scope CurrentUser -Force
       - name: Lint C# formatting and PowerShell
-        shell: powershell
         run: .\scripts\lint.ps1
-      - name: Ensure VSTO build tools
-        shell: powershell
-        run: .\scripts\install-build-tools.ps1
-      - name: Run regression tests
-        shell: powershell
-        run: .\scripts\test.ps1
-      - name: Build signed package with C# static analysis
-        shell: powershell
+      - name: Run unit tests with dotnet CLI
+        run: dotnet run --project tests/RecipientConfirm.Tests/RecipientConfirm.Tests.csproj --configuration Release
+      - name: Build and publish VSTO package with static analysis
         run: |
           $thumbprint = .\scripts\new-dev-certificate.ps1
           try {
-            .\scripts\build.ps1 -CertificateThumbprint $thumbprint -Publish
+            $publishDir = Join-Path $env:GITHUB_WORKSPACE 'artifacts\publish\'
+            msbuild src/RecipientConfirm/RecipientConfirm.csproj /restore /t:Publish /p:Configuration=Release "/p:ManifestCertificateThumbprint=$thumbprint" "/p:PublishDir=$publishDir"
+            if ($LASTEXITCODE -ne 0) { throw 'VSTO build/publish failed.' }
+            if (-not (Test-Path artifacts/publish/RecipientConfirm.vsto) -or
+                -not (Get-ChildItem artifacts/publish -Recurse -Filter RecipientConfirm.dll.manifest) -or
+                -not (Get-ChildItem artifacts/publish -Recurse -Filter RecipientConfirm.dll.deploy)) {
+              throw 'VSTO deployment files are incomplete.'
+            }
           } finally {
             Remove-Item -LiteralPath "Cert:\CurrentUser\My\$thumbprint" -ErrorAction SilentlyContinue
           }

@@ -4,7 +4,7 @@ VisualStudioVersion = 17.0.31903.59
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RecipientConfirm", "src\RecipientConfirm\RecipientConfirm.csproj", "{3A11FC7D-A854-4135-9768-B5816B5ED8F4}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RecipientConfirm.Tests", "tests\RecipientConfirm.Tests\RecipientConfirm.Tests.csproj", "{27B8AD7D-C926-4DB1-9D85-D2FBB2C46EA7}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "RecipientConfirm.Tests", "tests\RecipientConfirm.Tests\RecipientConfirm.Tests.csproj", "{27B8AD7D-C926-4DB1-9D85-D2FBB2C46EA7}"
 EndProject
 Global
     GlobalSection(SolutionConfigurationPlatforms) = preSolution

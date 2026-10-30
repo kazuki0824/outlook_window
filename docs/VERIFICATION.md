@@ -2,7 +2,21 @@
 
 日付: 2026-10-21
 
-## 実施済み
+## 2026-10-30: CLI簡素化とdotnet互換性
+
+[PR #1](https://github.com/kazuki0824/outlook_window/pull/1)で、独自の環境探索、自動インストール、ビルドラッパー、テストラッパーの4ファイル・144行を削除しました。単体テストはSDK形式として`dotnet run`でビルド・実行し、VSTO本体はMSBuildのPublishターゲットを直接一度だけ呼びます。テストケースとアドイン本体のソースは変更していません。
+
+[Windows / .NET SDK 10.0.403での実測](https://github.com/kazuki0824/outlook_window/actions/runs/40982783820):
+
+| 実行条件 | 結果 |
+|---|---|
+| 通常の`dotnet build` | SDKにOfficeToolsターゲットがなくMSB4019 |
+| インストール済みVSTOターゲットとPIAを指定 | VSTO参照DLLを解決できずCS0234 |
+| 実在するVSTO参照DLLのHintPathも指定 | DLLコンパイル成功（警告0）。その後`VerifyClickOnceSigningSettings`がMSB4018で失敗。`Microsoft.VisualStudio.Tools.Applications.Hosting, Version=10.0.0.0`をロードできない |
+
+結論は、現構成を`dotnet`へそのまま置き換えてVSTO配布物生成まで完了することはできなかった、という範囲です。追加の依存解決やタスクの移植まで不可能だとする検証ではありません。簡素化後の通常CIは[PRのChecks](https://github.com/kazuki0824/outlook_window/pull/1/checks)を参照してください。互換性調査ジョブは失敗ログを保存するため成功終了する仕組みであり、製品ビルドの合格を意味しません。調査用ジョブと一時targetsは最終構成には残していません。
+
+## 2026-10-21: 実施済み
 
 - [Windows CI初回実行](https://github.com/kazuki0824/outlook_window/actions/runs/39593714310)で、VSTO本体とテストプロジェクトのビルド・静的解析が警告0、エラー0。リントと.NET Framework 4.8での18件のテストも成功。Publish自体は成功したが、出力先にPublishUrlを渡していたため想定先への生成物チェックで失敗し、PublishDirへ修正。
 - C#の全ソース7ファイルを`dotnet format whitespace . --folder --verify-no-changes`で検査し成功。書式違反を検出して非ゼロ終了することも確認し、指摘を修正済み。
@@ -24,6 +38,6 @@
 
 Linuxで通過したテストは送信判定の純粋C#部分に限ります。COM APIの参照解決、VSTOホストの初期化、ClickOnceの生成物、実際のメール送信を検証したものではありません。
 
-## 回帰テストの対象
+## 単体テストの対象
 
 承認済みで同一宛先の場合の許可、キャンセル、空/null宛先、宛先追加・削除、To/Cc/Bccの変更、SMTPアドレス変更、表示名変更、グループ区分変更、再取得null、並べ替え、重複数、最初/2回目の取得例外、確認処理例外、空アドレス、不明な宛先種別。
