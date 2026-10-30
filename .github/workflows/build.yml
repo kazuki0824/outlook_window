@@ -34,14 +34,11 @@ jobs:
             dotnet build $project --configuration Release "-p:ManifestCertificateThumbprint=$thumbprint" "-p:VSToolsPath=$($build.VSToolsPath)" "-p:OfficePiaPath=$pia" 2>&1 | Tee-Object artifacts/probe/with-vsto-targets.log
             "With VSTO targets exit code: $LASTEXITCODE" | Tee-Object -Append artifacts/probe/with-vsto-targets.log
             $vs = (Resolve-Path (Join-Path $build.VSToolsPath '..\..\..\..')).Path
-            $references = '{HintPathFromItem}%3B{TargetFrameworkDirectory}%3B' + "$vs\Common7\IDE\ReferenceAssemblies\v4.0%3B$vs\Common7\IDE\PublicAssemblies"
-            dotnet build $project --configuration Release "-p:ManifestCertificateThumbprint=$thumbprint" "-p:VSToolsPath=$($build.VSToolsPath)" "-p:OfficePiaPath=$pia" "-p:AssemblySearchPaths=$references" 2>&1 | Tee-Object artifacts/probe/with-vsto-references.log
-            "With VSTO references exit code: $LASTEXITCODE" | Tee-Object -Append artifacts/probe/with-vsto-references.log
             [xml]$source = Get-Content $project
             $xmlns = 'http://schemas.microsoft.com/developer/msbuild/2003'
             [xml]$fixes = '<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003"><ItemGroup /></Project>'
             $items = $fixes.DocumentElement.FirstChild
-            foreach ($reference in $source.Project.ItemGroup.Reference) {
+            foreach ($reference in $source.SelectNodes("//*[local-name()='Reference']")) {
               $identity = $reference.Include
               $name = ($identity -split ',')[0]
               if ($name -like 'Microsoft.Office.Tools*' -or $name -like 'Microsoft.VisualStudio.Tools*' -or $name -eq 'stdole') {
