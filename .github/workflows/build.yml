@@ -34,8 +34,8 @@ jobs:
             dotnet build $project --configuration Release "-p:ManifestCertificateThumbprint=$thumbprint" "-p:VSToolsPath=$($build.VSToolsPath)" "-p:OfficePiaPath=$pia" 2>&1 | Tee-Object artifacts/probe/with-vsto-targets.log
             "With VSTO targets exit code: $LASTEXITCODE" | Tee-Object -Append artifacts/probe/with-vsto-targets.log
             $vs = (Resolve-Path (Join-Path $build.VSToolsPath '..\..\..\..')).Path
-            $references = "$vs\Common7\IDE\ReferenceAssemblies\v4.0%3B$vs\Common7\IDE\PublicAssemblies"
-            dotnet build $project --configuration Release "-p:ManifestCertificateThumbprint=$thumbprint" "-p:VSToolsPath=$($build.VSToolsPath)" "-p:OfficePiaPath=$pia" "-p:ReferencePath=$references" 2>&1 | Tee-Object artifacts/probe/with-vsto-references.log
+            $references = '{HintPathFromItem}%3B{TargetFrameworkDirectory}%3B' + "$vs\Common7\IDE\ReferenceAssemblies\v4.0%3B$vs\Common7\IDE\PublicAssemblies"
+            dotnet build $project --configuration Release "-p:ManifestCertificateThumbprint=$thumbprint" "-p:VSToolsPath=$($build.VSToolsPath)" "-p:OfficePiaPath=$pia" "-p:AssemblySearchPaths=$references" 2>&1 | Tee-Object artifacts/probe/with-vsto-references.log
             "With VSTO references exit code: $LASTEXITCODE" | Tee-Object -Append artifacts/probe/with-vsto-references.log
           } finally {
             Remove-Item -LiteralPath "Cert:\CurrentUser\My\$thumbprint" -ErrorAction SilentlyContinue
