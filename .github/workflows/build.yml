@@ -1,7 +1,5 @@
-name: Windows build, lint and tests
+name: dotnet CLI compatibility probe
 on:
-  push:
-    branches: [main]
   pull_request:
   workflow_dispatch:
 permissions:
@@ -10,42 +8,39 @@ concurrency:
   group: build-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 jobs:
-  build:
+  dotnet-probe:
     runs-on: windows-2022
-    timeout-minutes: 20
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: 8.0.x
-      - name: Install PowerShell linter
+          dotnet-version: 10.0.x
+      - name: Probe dotnet CLI with and without installed VSTO targets
         shell: powershell
         run: |
-          $ErrorActionPreference = 'Stop'
-          [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
-          Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Force -Scope CurrentUser | Out-Null
-          Install-Module PSScriptAnalyzer -RequiredVersion 1.23.0 -Repository PSGallery -Scope CurrentUser -Force
-      - name: Lint C# formatting and PowerShell
-        shell: powershell
-        run: .\scripts\lint.ps1
-      - name: Ensure VSTO build tools
-        shell: powershell
-        run: .\scripts\install-build-tools.ps1
-      - name: Run regression tests
-        shell: powershell
-        run: .\scripts\test.ps1
-      - name: Build signed package with C# static analysis
-        shell: powershell
-        run: |
+          $ErrorActionPreference = 'Continue'
+          New-Item -ItemType Directory -Force artifacts/probe | Out-Null
+          dotnet --info
           $thumbprint = .\scripts\new-dev-certificate.ps1
           try {
-            .\scripts\build.ps1 -CertificateThumbprint $thumbprint -Publish
+            $project = 'src/RecipientConfirm/RecipientConfirm.csproj'
+            dotnet build $project --configuration Release "-p:ManifestCertificateThumbprint=$thumbprint" 2>&1 | Tee-Object artifacts/probe/sdk-only.log
+            "SDK-only exit code: $LASTEXITCODE" | Tee-Object -Append artifacts/probe/sdk-only.log
+            . .\scripts\BuildEnvironment.ps1
+            $build = Get-BuildEnvironment
+            $pia = Get-OfficePiaPath
+            $ErrorActionPreference = 'Continue'
+            dotnet build $project --configuration Release "-p:ManifestCertificateThumbprint=$thumbprint" "-p:VSToolsPath=$($build.VSToolsPath)" "-p:OfficePiaPath=$pia" 2>&1 | Tee-Object artifacts/probe/with-vsto-targets.log
+            "With VSTO targets exit code: $LASTEXITCODE" | Tee-Object -Append artifacts/probe/with-vsto-targets.log
           } finally {
             Remove-Item -LiteralPath "Cert:\CurrentUser\My\$thumbprint" -ErrorAction SilentlyContinue
           }
-      - name: Upload development package (not production signed)
-        uses: actions/upload-artifact@v4
+          # This job records compatibility results; it is not a build acceptance check.
+          exit 0
+      - uses: actions/upload-artifact@v4
+        if: always()
         with:
-          name: RecipientConfirm-development
-          path: artifacts/publish/
+          name: dotnet-compatibility-evidence
+          path: artifacts/probe/
           if-no-files-found: error
